@@ -11,33 +11,29 @@ package flash.geom {
         private var displayObject: DisplayObject = null;
 
         [Ruffle(NativeAccessible)]
-        private var fov: Number = 55.0;
+        private var _focalLength: Number;
 
         [Ruffle(NativeAccessible)]
         private var center: Point = new Point(250, 250);
 
         public function PerspectiveProjection() {
+            this.fieldOfView = 55.0;
         }
 
-        public function get fieldOfView():Number {
-            stub_getter("flash.geom.PerspectiveProjection", "fieldOfView");
-            return this.fov;
+        public native function get fieldOfView():Number;
+
+        public native function set fieldOfView(value:Number);
+
+        public function get focalLength():Number {
+            return this._focalLength;
         }
 
-        public function set fieldOfView(value:Number) {
-            // TODO: This setter should update the associated displayObject when there is.
-            stub_setter("flash.geom.PerspectiveProjection", "fieldOfView");
-
-            if (value <= 0 || 180 <= value) {
-                throw new ArgumentError("Error #2182: Invalid fieldOfView value.  The value must be greater than 0 and less than 180.", 2182);
+        public function set focalLength(value:Number) {
+            if (value <= 0.0) {
+                throw new ArgumentError("Error #2186: Invalid focalLength " + value + ".", 2186);
             }
-
-            this.fov = value;
+            this._focalLength = value;
         }
-
-        public native function get focalLength():Number;
-
-        public native function set focalLength(value:Number);
 
         public function get projectionCenter():Point {
             stub_getter("flash.geom.PerspectiveProjection", "projectionCenter");

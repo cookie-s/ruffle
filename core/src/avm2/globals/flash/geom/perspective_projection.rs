@@ -24,7 +24,7 @@ fn get_width<'gc>(activation: &mut Activation<'_, 'gc>, this: Object<'gc>) -> f6
     }
 }
 
-pub fn get_focal_length<'gc>(
+pub fn get_field_of_view<'gc>(
     activation: &mut Activation<'_, 'gc>,
     this: Value<'gc>,
     _args: &[Value<'gc>],
@@ -32,20 +32,22 @@ pub fn get_focal_length<'gc>(
     avm2_stub_getter!(
         activation,
         "flash.geom.PerspectiveProjection",
-        "focalLength"
+        "fieldOfView"
     );
 
     let this = this.as_object().unwrap();
 
-    let fov = this.get_slot(pp_slots::FOV).coerce_to_number(activation)?;
+    let focal_length = this
+        .get_slot(pp_slots::_FOCAL_LENGTH)
+        .coerce_to_number(activation)?;
 
     let width = get_width(activation, this);
-    let focal_length = (width / 2.0) as f32 * f64::tan((PI - fov * DEG2RAD) / 2.0) as f32;
+    let fov = f64::atan((width / 2.0) / focal_length) / DEG2RAD * 2.0;
 
-    Ok(focal_length.into())
+    Ok(fov.into())
 }
 
-pub fn set_focal_length<'gc>(
+pub fn set_field_of_view<'gc>(
     activation: &mut Activation<'_, 'gc>,
     this: Value<'gc>,
     args: &[Value<'gc>],
@@ -54,24 +56,22 @@ pub fn set_focal_length<'gc>(
     avm2_stub_setter!(
         activation,
         "flash.geom.PerspectiveProjection",
-        "focalLength"
+        "fieldOfView"
     );
     let this = this.as_object().unwrap();
 
-    let focal_length = args.get(0).unwrap().coerce_to_number(activation)?;
-
-    if focal_length <= 0.0 {
+    let fov = args.get(0).unwrap().coerce_to_number(activation)?;
+    if fov <= 0.0 || 180.0 <= fov {
         return Err(Error::AvmError(argument_error(
             activation,
-            &format!("Error #2186: Invalid focalLength {focal_length}."),
-            2186,
+            &format!("Error #2182: Invalid fieldOfView value.  The value must be greater than 0 and less than 180."),
+            2182,
         )?));
     }
 
     let width = get_width(activation, this);
-    let fov = f64::atan((width / 2.0) / focal_length) / DEG2RAD * 2.0;
-
-    this.set_slot(pp_slots::FOV, fov.into(), activation)?;
+    let focal_length = (width / 2.0) as f32 * f64::tan((PI - fov * DEG2RAD) / 2.0) as f32;
+    this.set_slot(pp_slots::_FOCAL_LENGTH, focal_length.into(), activation)?;
 
     Ok(Value::Undefined)
 }
