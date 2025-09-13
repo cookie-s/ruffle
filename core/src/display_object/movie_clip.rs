@@ -1912,7 +1912,7 @@ impl<'gc> MovieClip<'gc> {
         goto_commands: &mut Vec<GotoPlaceObject<'a>>,
         is_rewind: bool,
         from_frame: FrameNumber,
-        removed_frame_scripts: &mut Vec<DisplayObject<'gc>>,
+        _removed_frame_scripts: &mut Vec<DisplayObject<'gc>>,
     ) -> Result<(), Error> {
         let remove_object = if version == 1 {
             reader.read_remove_object_1()
@@ -1942,7 +1942,9 @@ impl<'gc> MovieClip<'gc> {
                     self.remove_child_from_depth_list(context, child);
                 }
 
-                removed_frame_scripts.push(child);
+                if child.as_movie_clip().is_some() {
+                    context.orphan_manager.add_orphan_obj(child);
+                }
             }
 
             self.0.current_frame.set(to_frame);

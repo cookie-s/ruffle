@@ -119,7 +119,7 @@ pub fn run_all_phases_avm2(context: &mut UpdateContext<'_>) {
 /// (even if the goto was called from an enterFrame event handler).
 pub fn run_inner_goto_frame<'gc>(
     context: &mut UpdateContext<'gc>,
-    removed_frame_scripts: &[DisplayObject<'gc>],
+    _removed_frame_scripts: &[DisplayObject<'gc>],
     initial_clip: MovieClip<'gc>,
 ) {
     if initial_clip.swf_version() <= 9 && initial_clip.movie().is_action_script_3() {
@@ -158,10 +158,6 @@ pub fn run_inner_goto_frame<'gc>(
     OrphanManager::each_orphan_obj(context, |orphan, context| {
         orphan.run_frame_scripts(context);
     });
-
-    for child in removed_frame_scripts {
-        child.run_frame_scripts(context);
-    }
 
     *context.frame_phase = FramePhase::Exit;
     stage.exit_frame(context);
