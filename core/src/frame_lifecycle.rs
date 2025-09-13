@@ -17,6 +17,8 @@ use crate::display_object::{DisplayObject, MovieClip, TDisplayObject};
 use crate::orphan_manager::OrphanManager;
 use tracing::instrument;
 
+pub type FrameNumber = u16;
+
 /// Which phase of the frame we're currently in.
 ///
 /// AVM2 frames exist in one of four phases: `Enter`, `Construct`,
@@ -117,7 +119,21 @@ pub fn run_all_phases_avm2(context: &mut UpdateContext<'_>) {
 /// This even extends to orphans - for example, calling `gotoAndStop` on an orphan will
 /// cause frame construction to get run for the *current frame* of other objects on the timeline
 /// (even if the goto was called from an enterFrame event handler).
-pub fn run_inner_goto_frame<'gc>(context: &mut UpdateContext<'gc>, initial_clip: MovieClip<'gc>) {
+pub fn run_inner_goto_frame<'gc>(
+    context: &mut UpdateContext<'gc>,
+    initial_clip: MovieClip<'gc>,
+    frame: FrameNumber,
+) {
+    if frame != initial_clip.current_frame() {
+        // On AVM2, all explicit gotos act the same way as a normal new frame,
+        // save for the lack of an enterFrame event. Since this must happen
+        // before AS3 continues execution, this is effectively a "recursive
+        // frame".
+        //
+        // Our queued place tags will now run at this time, too.
+        initial_clip.run_goto(context, frame, false);
+    }
+
     if initial_clip.swf_version() <= 9 && initial_clip.movie().is_action_script_3() {
         avm2_stub_method_context!(
             context,

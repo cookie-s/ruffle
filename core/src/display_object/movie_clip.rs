@@ -26,7 +26,7 @@ use crate::display_object::{
 use crate::drawing::Drawing;
 use crate::events::{ButtonKeyCode, ClipEvent, ClipEventResult};
 use crate::font::{Font, FontType};
-use crate::frame_lifecycle::{run_inner_goto_frame, FramePhase};
+use crate::frame_lifecycle::{run_inner_goto_frame, FrameNumber, FramePhase};
 use crate::library::MovieLibrary;
 use crate::limits::ExecutionLimit;
 use crate::loader::{self, ContentType};
@@ -55,8 +55,6 @@ use swf::{ClipEventFlag, DefineBitsLossless, FrameLabelData, TagCode, UTF_8};
 
 use super::interactive::Avm2MousePick;
 use super::BitmapClass;
-
-type FrameNumber = u16;
 
 /// Indication of what frame `run_frame` should jump to next.
 #[derive(PartialEq, Eq)]
@@ -738,25 +736,23 @@ impl<'gc> MovieClip<'gc> {
         // Clamp frame number in bounds.
         let frame = frame.max(1);
 
+        if self
+            .0
+            .contains_flag(MovieClipFlags::EXECUTING_AVM2_FRAME_SCRIPT)
+        {
+            // AVM2 does not allow a clip to see while it is executing a frame script.
+            // The goto is instead queued and run once the frame script is completed.
+
+            if frame != self.current_frame() {
+                self.0.queued_goto_frame.set(Some(frame));
+                return;
+            }
+        }
+
         // In AS3, no-op gotos have side effects that are visible to user code.
         // Hence, we have to run them anyway.
-        if frame != self.current_frame() {
-            if self
-                .0
-                .contains_flag(MovieClipFlags::EXECUTING_AVM2_FRAME_SCRIPT)
-            {
-                // AVM2 does not allow a clip to see while it is executing a frame script.
-                // The goto is instead queued and run once the frame script is completed.
-                self.0.queued_goto_frame.set(Some(frame));
-            } else {
-                self.run_goto(context, frame, false);
-            }
-        } else if self.movie().is_action_script_3() {
-            // Despite not running, the goto still overwrites the currently enqueued frame.
-            self.0.queued_goto_frame.set(None);
-            // Pretend we actually did a goto, but don't do anything.
-            run_inner_goto_frame(context, self);
-        }
+        self.0.queued_goto_frame.set(None);
+        run_inner_goto_frame(context, self, frame);
     }
 
     pub fn current_frame(self) -> FrameNumber {
@@ -1677,16 +1673,6 @@ impl<'gc> MovieClip<'gc> {
             .filter(|params| params.frame >= frame)
             .for_each(|goto| run_goto_command(self, context, goto));
 
-        // On AVM2, all explicit gotos act the same way as a normal new frame,
-        // save for the lack of an enterFrame event. Since this must happen
-        // before AS3 continues execution, this is effectively a "recursive
-        // frame".
-        //
-        // Our queued place tags will now run at this time, too.
-        if !is_implicit {
-            run_inner_goto_frame(context, self);
-        }
-
         self.assert_expected_tag_end(hit_target_frame);
     }
 
@@ -2228,7 +2214,7 @@ impl<'gc> MovieClip<'gc> {
 
         let goto_frame = self.0.queued_goto_frame.take();
         if let Some(frame) = goto_frame {
-            self.run_goto(context, frame, false);
+            run_inner_goto_frame(context, self, frame);
         }
     }
 }
