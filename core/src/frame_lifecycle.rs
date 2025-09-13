@@ -117,11 +117,7 @@ pub fn run_all_phases_avm2(context: &mut UpdateContext<'_>) {
 /// This even extends to orphans - for example, calling `gotoAndStop` on an orphan will
 /// cause frame construction to get run for the *current frame* of other objects on the timeline
 /// (even if the goto was called from an enterFrame event handler).
-pub fn run_inner_goto_frame<'gc>(
-    context: &mut UpdateContext<'gc>,
-    _removed_frame_scripts: &[DisplayObject<'gc>],
-    initial_clip: MovieClip<'gc>,
-) {
+pub fn run_inner_goto_frame<'gc>(context: &mut UpdateContext<'gc>, initial_clip: MovieClip<'gc>) {
     if initial_clip.swf_version() <= 9 && initial_clip.movie().is_action_script_3() {
         avm2_stub_method_context!(
             context,

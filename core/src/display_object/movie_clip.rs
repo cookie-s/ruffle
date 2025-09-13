@@ -755,7 +755,7 @@ impl<'gc> MovieClip<'gc> {
             // Despite not running, the goto still overwrites the currently enqueued frame.
             self.0.queued_goto_frame.set(None);
             // Pretend we actually did a goto, but don't do anything.
-            run_inner_goto_frame(context, &[], self);
+            run_inner_goto_frame(context, self);
         }
     }
 
@@ -1500,8 +1500,6 @@ impl<'gc> MovieClip<'gc> {
         // Sanity; let's make sure we don't seek way too far.
         let clamped_frame = frame.min(max(self.0.frames_loaded(), 0) as FrameNumber);
 
-        let mut removed_frame_scripts: Vec<DisplayObject<'gc>> = vec![];
-
         let mut reader = data.read_from(frame_pos);
         while self.current_frame() < clamped_frame && !reader.get_ref().is_empty() {
             self.0.increment_current_frame();
@@ -1542,7 +1540,6 @@ impl<'gc> MovieClip<'gc> {
                         &mut goto_commands,
                         is_rewind,
                         from_frame,
-                        &mut removed_frame_scripts,
                     ),
                 }?;
 
@@ -1687,7 +1684,7 @@ impl<'gc> MovieClip<'gc> {
         //
         // Our queued place tags will now run at this time, too.
         if !is_implicit {
-            run_inner_goto_frame(context, &removed_frame_scripts, self);
+            run_inner_goto_frame(context, self);
         }
 
         self.assert_expected_tag_end(hit_target_frame);
@@ -1912,7 +1909,6 @@ impl<'gc> MovieClip<'gc> {
         goto_commands: &mut Vec<GotoPlaceObject<'a>>,
         is_rewind: bool,
         from_frame: FrameNumber,
-        _removed_frame_scripts: &mut Vec<DisplayObject<'gc>>,
     ) -> Result<(), Error> {
         let remove_object = if version == 1 {
             reader.read_remove_object_1()
