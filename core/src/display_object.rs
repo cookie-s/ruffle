@@ -431,7 +431,7 @@ impl<'gc> DisplayObjectBase<'gc> {
 
     pub fn set_matrix(&self, matrix: Matrix) {
         self.matrix.set(matrix);
-        self.set_scale_rotation_cached(false);
+        self.set_scale_rotation_cached(false); // FIXME
     }
 
     pub fn matrix3d(&self) -> Option<Matrix3DObject<'gc>> {
@@ -440,7 +440,7 @@ impl<'gc> DisplayObjectBase<'gc> {
 
     pub fn set_matrix3d(this: &Write<Self>, matrix3d: Option<Matrix3DObject<'gc>>) {
         unlock!(this, Self, matrix3d).set(matrix3d);
-        this.set_scale_rotation_cached(false);
+        this.set_scale_rotation_cached(false); // FIXME
     }
 
     pub fn color_transform(&self) -> ColorTransform {
@@ -538,6 +538,7 @@ impl<'gc> DisplayObjectBase<'gc> {
     /// `_rotation` is accessed.
     fn cache_scale_rotation(&self) {
         if !self.scale_rotation_cached() {
+            // FIXME: 3D
             let Matrix { a, b, c, d, .. } = self.matrix.get();
             let a = f64::from(a);
             let b = f64::from(b);
@@ -600,6 +601,8 @@ impl<'gc> DisplayObjectBase<'gc> {
         let sin_y = f64::sin(degrees.into_radians() + skew);
         let scale_x = self.scale_x.get().unit();
         let scale_y = self.scale_y.get().unit();
+
+        // FIXME: 3D
         let mut matrix = self.matrix.get();
         matrix.a = (scale_x * cos_x) as f32;
         matrix.b = (scale_x * sin_x) as f32;
@@ -637,6 +640,8 @@ impl<'gc> DisplayObjectBase<'gc> {
 
         let cos = f64::cos(rot);
         let sin = f64::sin(rot);
+
+        // FIXME 3D
         let mut matrix = self.matrix.get();
         matrix.a = (cos * value.unit()) as f32;
         matrix.b = (sin * value.unit()) as f32;
@@ -673,6 +678,8 @@ impl<'gc> DisplayObjectBase<'gc> {
         let skew = self.skew.get();
         let cos = f64::cos(rot + skew);
         let sin = f64::sin(rot + skew);
+
+        // FIXME 3D
         let mut matrix = self.matrix.get();
         matrix.c = (-sin * value.unit()) as f32;
         matrix.d = (cos * value.unit()) as f32;
