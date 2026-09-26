@@ -506,7 +506,9 @@ impl<'gc> DisplayObjectBase<'gc> {
             // This can produce some surprising results due to the overlap between flipping/rotation/skewing.
             // For example, in Flash, using Modify->Transform->Flip Horizontal and then tracing _xscale, _yscale, and _rotation
             // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
-            let det = (a * d - b * c).next_up();
+            let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+            let det = notnan_or_zero(((a * d) - (b * c)).next_up());
+            let det2 = notnan_or_zero((notnan_or_zero(a * d) - notnan_or_zero(b * c)).next_up());
             let rotation_x = f64::atan2(b, a);
             let rotation_y = f64::atan2(-c, d);
             let scale_x = f64::sqrt(a * a + b * b);
@@ -514,7 +516,19 @@ impl<'gc> DisplayObjectBase<'gc> {
             self.rotation.set(Degrees::from_radians(rotation_x));
             self.scale_x.set(Percent::from_unit(scale_x));
             self.scale_y.set(Percent::from_unit(scale_y));
-            self.skew.set(rotation_y - rotation_x);
+            let rotation_x = if a.is_nan() && b.is_nan() {
+                f64::atan2(1.0, 1.0)
+            } else {
+                rotation_x
+            };
+            self.skew
+                .set((det2.signum() * notnan_or_zero(rotation_y) - notnan_or_zero(rotation_x)));
+            if a.is_nan() && b == 1.0 && c == 1.0 && d == 1.0 && false {
+                panic!(
+                    "a {a}, b {b}, c {c}, d {d} det {det} rotation_x {rotation_x} rotation_y {rotation_y} scale_x {scale_x} scale_y {scale_y} skew {} det2 {det2}",
+                    self.skew.get()
+                )
+            }
         }
     }
 
@@ -528,6 +542,8 @@ impl<'gc> DisplayObjectBase<'gc> {
         self.cache_scale_rotation();
         let changed = self.rotation.get() != degrees;
         self.rotation.set(degrees);
+
+        let mut matrix = self.matrix.get();
 
         // FIXME - this isn't quite correct. In Flash player,
         // trying to set rotation to NaN does nothing if the current
@@ -546,18 +562,17 @@ impl<'gc> DisplayObjectBase<'gc> {
             return changed;
         }
 
+        let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+
         let skew = self.skew.get();
-        let cos_x = f64::cos(degrees.into_radians());
-        let sin_x = f64::sin(degrees.into_radians());
-        let cos_y = f64::cos(degrees.into_radians() + skew);
-        let sin_y = f64::sin(degrees.into_radians() + skew);
+        let (sin_x, cos_x) = notnan_or_zero(degrees.into_radians()).sin_cos();
+        let (sin_y, cos_y) = (notnan_or_zero(degrees.into_radians()) + skew).sin_cos();
         let scale_x = self.scale_x.get().unit();
         let scale_y = self.scale_y.get().unit();
-        let mut matrix = self.matrix.get();
-        matrix.a = (scale_x * cos_x) as f32;
-        matrix.b = (scale_x * sin_x) as f32;
-        matrix.c = (scale_y * -sin_y) as f32;
-        matrix.d = (scale_y * cos_y) as f32;
+        matrix.a = notnan_or_zero(scale_x * cos_x) as f32;
+        matrix.b = notnan_or_zero(scale_x * sin_x) as f32;
+        matrix.c = notnan_or_zero(scale_y * -sin_y) as f32;
+        matrix.d = notnan_or_zero(scale_y * cos_y) as f32;
         self.matrix.set(matrix);
 
         changed
@@ -592,11 +607,17 @@ impl<'gc> DisplayObjectBase<'gc> {
             rot = 0.0;
         }
 
-        let cos = f64::cos(rot);
-        let sin = f64::sin(rot);
+        let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+
         let mut matrix = self.matrix.get();
-        matrix.a = (cos * value.unit()) as f32;
-        matrix.b = (sin * value.unit()) as f32;
+        let skew = self.skew.get();
+        let (sin_x, cos_x) = notnan_or_zero(rot).sin_cos();
+        let (sin_y, cos_y) = (notnan_or_zero(rot) + skew).sin_cos();
+        let scale_y = self.scale_y.get().unit();
+        matrix.a = notnan_or_zero(value.unit() * cos_x) as f32;
+        matrix.b = notnan_or_zero(value.unit() * sin_x) as f32;
+        matrix.c = notnan_or_zero(scale_y * -sin_y) as f32;
+        matrix.d = notnan_or_zero(scale_y * cos_y) as f32;
         self.matrix.set(matrix);
 
         changed
@@ -631,12 +652,17 @@ impl<'gc> DisplayObjectBase<'gc> {
             rot = 0.0;
         }
 
-        let skew = self.skew.get();
-        let cos = f64::cos(rot + skew);
-        let sin = f64::sin(rot + skew);
+        let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+
         let mut matrix = self.matrix.get();
-        matrix.c = (-sin * value.unit()) as f32;
-        matrix.d = (cos * value.unit()) as f32;
+        let skew = self.skew.get();
+        let (sin_x, cos_x) = notnan_or_zero(rot).sin_cos();
+        let (sin_y, cos_y) = (notnan_or_zero(rot) + skew).sin_cos();
+        let scale_x = self.scale_x.get().unit();
+        matrix.a = notnan_or_zero(scale_x * cos_x) as f32;
+        matrix.b = notnan_or_zero(scale_x * sin_x) as f32;
+        matrix.c = notnan_or_zero(-sin_y * value.unit()) as f32;
+        matrix.d = notnan_or_zero(cos_y * value.unit()) as f32;
         self.matrix.set(matrix);
 
         changed
