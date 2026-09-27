@@ -6,6 +6,56 @@ package {
         private var props = ["rotation", "x", "y", "scaleX", "scaleY"];
 
         public function Test() {
+            TestZeroSkew();
+            return;
+
+            TestWeirdMatrix();
+        }
+
+        public function TestZeroSkew() {
+            var limits1 = [0, NaN];
+            var limits2 = [1, NaN];
+            var limits3 = [1, 0];
+            var rots = [0, 0.5, -0.5, 1, -1, 2, -2, 0.25, -0.25];
+            for each (var prop in ["rotation"]) {
+                trace("// TestZeroSkew: " + prop + " = 0");
+                for(var idx1 = 0; idx1 < 2; idx1++) {
+                    for(var idx2 = 0; idx2 < 2; idx2++) {
+                        for(var idxr = 0; idxr < rots.length; idxr++) {
+                            var m = new Matrix();
+
+                            var clip = new MovieClip();
+                            m.identity();
+                            m.scale(limits1[idx1], limits1[idx2]);
+                            m.rotate(rots[idxr] * Math.PI);
+                            clip.transform.matrix = m;
+                            trace(m);
+                            printChange(clip, prop, 0);
+                            trace("");
+
+                            m.identity();
+                            m.scale(limits2[idx1], limits2[idx2]);
+                            m.rotate(rots[idxr] * Math.PI);
+                            clip.transform.matrix = m;
+                            trace(m);
+                            printChange(clip, prop, 0);
+                            trace("");
+
+                            m.identity();
+                            m.scale(limits3[idx1], limits3[idx2]);
+                            m.rotate(rots[idxr] * Math.PI);
+                            clip.transform.matrix = m;
+                            trace(m);
+                            printChange(clip, prop, 0);
+                            trace("");
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        public function TestWeirdMatrix() {
             var a = new MovieClip();
             a.rotation = 26.56;
             a.scaleX = 2.2;
