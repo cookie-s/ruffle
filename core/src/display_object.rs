@@ -486,6 +486,7 @@ impl<'gc> DisplayObjectBase<'gc> {
     fn cache_scale_rotation(&self) {
         if !self.scale_rotation_cached() {
             let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+            let nan_to_neg_inf = |x: f64| if x.is_nan() { f64::NEG_INFINITY } else { x };
 
             let Matrix { a, b, c, d, .. } = self.matrix.get();
             let ra = f64::from(a);
@@ -532,14 +533,14 @@ impl<'gc> DisplayObjectBase<'gc> {
             } else {
                 1.0
             };
-            let rotation_x = atan2(b, a);
-            let rotation_y = sig * atan2(-c, d);
+            let rotation_x = atan2(nan_to_neg_inf(rb), nan_to_neg_inf(ra));
+            let rotation_y = atan2(nan_to_neg_inf(-sig * rc), nan_to_neg_inf(sig * rd));
             let scale_x = f64::sqrt(ra * ra + rb * rb);
             let scale_y = sig * f64::sqrt(rc * rc + rd * rd);
             self.rotation.set(Degrees::from_radians(f64::atan2(rb, ra)));
             self.scale_x.set(Percent::from_unit(scale_x));
             self.scale_y.set(Percent::from_unit(scale_y));
-            self.skew.set(sig * rotation_y * -1.0 + rotation_x);
+            self.skew.set(rotation_y - rotation_x);
         }
     }
 
@@ -582,8 +583,8 @@ impl<'gc> DisplayObjectBase<'gc> {
         let scale_y = self.scale_y.get().unit();
         matrix.a = (notnan_or_zero(scale_x) * cos_x) as f32;
         matrix.b = (notnan_or_zero(scale_x) * sin_x) as f32;
-        matrix.c = (notnan_or_zero(scale_y.signum() * scale_y) * sin_y) as f32;
-        matrix.d = (notnan_or_zero(scale_y.signum() * scale_y) * cos_y) as f32;
+        matrix.c = (notnan_or_zero(scale_y) * -sin_y) as f32;
+        matrix.d = (notnan_or_zero(scale_y) * cos_y) as f32;
         self.matrix.set(matrix);
 
         changed
