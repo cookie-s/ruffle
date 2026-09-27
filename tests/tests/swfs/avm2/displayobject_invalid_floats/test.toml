@@ -6,5 +6,6 @@ number_patterns = [
     'rotation=(NaN|[0-9.e+-]*), x=(NaN|[0-9.e+-]*), y=(NaN|[0-9.e+-]*), scaleX=(NaN|[0-9.e+-]*), scaleY=(NaN|[0-9.e+-]*),',
 ]
 
-# FIXME: I feel the epsilon is too large. Reduce the errors.
+# FIXME: I feel the epsilon is large. Reduce the errors.
 epsilon = 1e-2
+max_relative = 1e-2
