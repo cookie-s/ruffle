@@ -3369,6 +3369,8 @@ fn test_nannannan() {
         rd: f64,
     ) -> (ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq) {
         let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+
+        // cache_rotation
         let atan2 = |x: f64, y: f64| {
             if (x, y) == (0.0, 0.0) {
                 -std::f64::consts::PI / 4.0
@@ -3376,15 +3378,12 @@ fn test_nannannan() {
                 f64::atan2(x, y)
             }
         };
-
         let (a, b, c, d) = (
             notnan_or_zero(ra),
             notnan_or_zero(rb),
             notnan_or_zero(rc),
             notnan_or_zero(rd),
         );
-
-        // cache_rotation
         // let det = notnan_or_zero(((a * d) - (b * c)).next_up());
         let sig = if (a * d) > (b * c) {
             1.0
