@@ -26,32 +26,23 @@ package {
             // and I havne't yet figured out how to reproduce them. Hopefully,
             // there are no SWFs relying on the behavior.
 
-            var limits = [0, NaN];
+            var limits1 = [0, NaN];
+            var limits2 = [1, NaN];
+            var limits3 = [1, 0];
             for each (var prop in props) {
-                trace("// " + prop + " = NaN");
-                for each (var l1 in limits) {
-                    for each (var l2 in limits) {
-                        for each (var l3 in limits) {
-                            for each (var l4 in limits) {
+                trace("// " + prop + " = 0");
+                for(var idx1 = 0; idx1 < 2; idx1++) {
+                    for(var idx2 = 0; idx2 < 2; idx2++) {
+                        for(var idx3 = 0; idx3 < 2; idx3++) {
+                            for(var idx4 = 0; idx4 < 2; idx4++) {
                                 var clip = new MovieClip();
-                                clip.transform.matrix = new Matrix(l1, l2, l3, l4, 0, 0);
+                                clip.transform.matrix = new Matrix(limits1[idx1], limits1[idx2], limits1[idx3], limits1[idx4], 0, 0);
                                 printChange(clip, prop, 0);
                                 trace("");
-                            }
-                        }
-                    }
-                }
-            }
-
-            var limits = [1, NaN];
-            for each (var prop in props) {
-                trace("// " + prop + " = NaN");
-                for each (var l1 in limits) {
-                    for each (var l2 in limits) {
-                        for each (var l3 in limits) {
-                            for each (var l4 in limits) {
-                                var clip = new MovieClip();
-                                clip.transform.matrix = new Matrix(l1, l2, l3, l4, 0, 0);
+                                clip.transform.matrix = new Matrix(limits2[idx1], limits2[idx2], limits2[idx3], limits2[idx4], 0, 0);
+                                printChange(clip, prop, 0);
+                                trace("");
+                                clip.transform.matrix = new Matrix(limits3[idx1], limits3[idx2], limits3[idx3], limits3[idx4], 0, 0);
                                 printChange(clip, prop, 0);
                                 trace("");
                             }
@@ -105,12 +96,12 @@ package {
         }
 
         private function printChange(clip:MovieClip, prop:String, value:*) {
+            trace("  transform.matrix = " + clip.transform.matrix);
             var result = "";
             for each (var p in props) {
                 result += p + "=" + clip[p] + ", ";
             }
             trace("  " + result);
-            trace("  transform.matrix = " + clip.transform.matrix);
 
             trace("clip[" + prop + "] = " + value);
             clip[prop] = value;
