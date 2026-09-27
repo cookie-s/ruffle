@@ -25,7 +25,6 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::num::NonZero;
-use std::ops::Deref;
 use std::sync::Arc;
 use swf::{ColorTransform, Fixed8};
 
@@ -502,7 +501,7 @@ impl<'gc> DisplayObjectBase<'gc> {
             );
             let atan2 = |x: f64, y: f64| {
                 if (x, y) == (0.0, 0.0) {
-                    -std::f64::consts::PI / 4.0
+                    std::f64::consts::PI / 2.0
                 } else {
                     f64::atan2(x, y)
                 }
@@ -522,23 +521,25 @@ impl<'gc> DisplayObjectBase<'gc> {
             // This can produce some surprising results due to the overlap between flipping/rotation/skewing.
             // For example, in Flash, using Modify->Transform->Flip Horizontal and then tracing _xscale, _yscale, and _rotation
             // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
-            let sig = if (a * d) > (b * c) {
+            let sig = if ra.is_nan() {
+                1.0
+            } else if rb.is_nan() {
+                1.0
+            } else if (a * d) > (b * c) {
                 1.0
             } else if (a * d) < (b * c) {
                 -1.0
-            } else if ra.is_nan() {
-                1.0
             } else {
-                -1.0
+                1.0
             };
             let rotation_x = atan2(b, a);
-            let rotation_y = atan2(-c, d);
-            let scale_x = f64::sqrt(a * a + b * b);
-            let scale_y = sig * f64::sqrt(c * c + d * d);
-            self.rotation.set(Degrees::from_radians(rotation_x));
+            let rotation_y = sig * atan2(-c, d);
+            let scale_x = f64::sqrt(ra * ra + rb * rb);
+            let scale_y = sig * f64::sqrt(rc * rc + rd * rd);
+            self.rotation.set(Degrees::from_radians(f64::atan2(rb, ra)));
             self.scale_x.set(Percent::from_unit(scale_x));
             self.scale_y.set(Percent::from_unit(scale_y));
-            self.skew.set(sig * rotation_y + rotation_x);
+            self.skew.set(sig * rotation_y * -1.0 + rotation_x);
         }
     }
 
@@ -579,10 +580,10 @@ impl<'gc> DisplayObjectBase<'gc> {
         let (sin_y, cos_y) = (notnan_or_zero(degrees.into_radians()) + skew).sin_cos();
         let scale_x = self.scale_x.get().unit();
         let scale_y = self.scale_y.get().unit();
-        matrix.a = notnan_or_zero(scale_x * cos_x) as f32;
-        matrix.b = notnan_or_zero(scale_x * sin_x) as f32;
-        matrix.c = notnan_or_zero(scale_y * -sin_y) as f32;
-        matrix.d = notnan_or_zero(scale_y * -cos_y) as f32;
+        matrix.a = (notnan_or_zero(scale_x) * cos_x) as f32;
+        matrix.b = (notnan_or_zero(scale_x) * sin_x) as f32;
+        matrix.c = (notnan_or_zero(scale_y.signum() * scale_y) * sin_y) as f32;
+        matrix.d = (notnan_or_zero(scale_y.signum() * scale_y) * cos_y) as f32;
         self.matrix.set(matrix);
 
         changed
@@ -3343,32 +3344,49 @@ impl<'gc> DisplayObjectWeak<'gc> {
 
 #[test]
 fn test_nannannan() {
-    struct ApproxEq(f64);
+    struct DontCare(f64);
+    impl PartialEq for DontCare {
+        fn eq(&self, _other: &Self) -> bool {
+            true
+        }
+    }
+    impl Debug for DontCare {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if self.0.is_nan() {
+                write!(f, "DC(_)")
+            } else {
+                write!(f, "DC({})", self.0)
+            }
+        }
+    }
+    const DC: DontCare = DontCare(f64::NAN);
 
+    struct ApproxEq(f64);
     impl PartialEq for ApproxEq {
         fn eq(&self, other: &Self) -> bool {
-            if (0.9999..=1.0001).contains(&(self.0 / other.0).abs()) {
+            if (0.9999..=1.0001).contains(&(self.0 / other.0)) {
                 return true;
             }
-            if (0.9999..=1.0001).contains(&(other.0 / self.0).abs()) {
+            if (0.9999..=1.0001).contains(&(other.0 / self.0)) {
                 return true;
             }
-            if (self.0 - other.0).abs() < f64::EPSILON {
+            if (self.0 - other.0).abs() < 1e-10 {
+                return true;
+            }
+            if self.0.is_nan() && other.0.is_nan() {
                 return true;
             }
             f64::eq(&self.0, &other.0)
         }
     }
-    impl Deref for ApproxEq {
-        type Target = f64;
-
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
     impl Debug for ApproxEq {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", self.0)
+        }
+    }
+    impl From<ApproxEq> for DontCare {
+        fn from(value: ApproxEq) -> Self {
+            DontCare(value.0)
         }
     }
 
@@ -3377,13 +3395,22 @@ fn test_nannannan() {
         rb: f64,
         rc: f64,
         rd: f64,
-    ) -> (ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq) {
+    ) -> (
+        ApproxEq,
+        ApproxEq,
+        ApproxEq,
+        ApproxEq,
+        ApproxEq,
+        ApproxEq,
+        ApproxEq,
+    ) {
         let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
 
-        // cache_rotation
+        // cache_scale_rotation
         let atan2 = |x: f64, y: f64| {
             if (x, y) == (0.0, 0.0) {
-                -std::f64::consts::PI / 4.0
+                std::f64::consts::PI / 2.0
+                // f64::NAN
             } else {
                 f64::atan2(x, y)
             }
@@ -3395,33 +3422,45 @@ fn test_nannannan() {
             notnan_or_zero(rd),
         );
         // let det = notnan_or_zero(((a * d) - (b * c)).next_up());
-        let sig = if (a * d) > (b * c) {
+        let sig = if ra.is_nan() {
+            1.0
+        } else if rb.is_nan() {
+            1.0
+        } else if (a * d) > (b * c) {
             1.0
         } else if (a * d) < (b * c) {
             -1.0
-        } else if ra.is_nan() {
-            1.0
         } else {
-            -1.0
+            // -1.0
+            1.0
         };
 
         let rotation_x = atan2(b, a);
-        let rotation_y = atan2(-c, d);
-        let scale_x = f64::sqrt(a * a + b * b);
-        let scale_y = sig * f64::sqrt(c * c + d * d);
-        let rotation = (Degrees::from_radians(rotation_x));
-        let scale_x = (Percent::from_unit(scale_x));
-        let scale_y = (Percent::from_unit(scale_y));
-        let skew = (sig * (rotation_y) + (rotation_x));
+        let rotation_y = sig * atan2(-c, d);
+        let scale_x = (Percent::from_unit(f64::sqrt(ra * ra + rb * rb)));
+        let scale_y = (Percent::from_unit(sig * f64::sqrt(rc * rc + rd * rd)));
+        let rotation = (Degrees::from_radians(f64::atan2(rb, ra)));
+        let skew = notnan_or_zero(sig * (rotation_y) + rotation_x);
 
         // set_rotation
         let degree = 0.0;
         let (sin_x, cos_x) = notnan_or_zero(degree).sin_cos();
         let (sin_y, cos_y) = (notnan_or_zero(degree) + skew).sin_cos();
-        let a = (scale_x.unit() * cos_x);
-        let b = (scale_x.unit() * sin_x);
-        let c = (scale_y.unit() * -sin_y);
-        let d = (scale_y.unit() * -cos_y);
+        if a == 0.0 && b == 0.0 && c == 0.0 && d == -1.0 {
+            dbg!(
+                scale_y.unit(),
+                cos_y,
+                skew,
+                sig,
+                rotation_y,
+                rotation_x,
+                f64::atan2(rb, ra),
+            );
+        }
+        let a = notnan_or_zero(scale_x.unit()) * cos_x;
+        let b = notnan_or_zero(scale_x.unit()) * sin_x;
+        let c = notnan_or_zero(sig * scale_y.unit()) * sin_y;
+        let d = notnan_or_zero(sig * scale_y.unit()) * cos_y;
         (
             ApproxEq(a),
             ApproxEq(b),
@@ -3429,123 +3468,199 @@ fn test_nannannan() {
             ApproxEq(d),
             ApproxEq(scale_x.unit()),
             ApproxEq(scale_y.unit()),
+            ApproxEq(rotation.into_radians()),
         )
     }
 
+    fn assign_nanmat_assign_rot0_prev_rot(a: f64, b: f64, c: f64, d: f64) -> ApproxEq {
+        let (_a, _b, _c, _d, _sx, _sy, r) = assign_nanmat_assign_rot0(a, b, c, d);
+        r
+    }
     fn assign_nanmat_assign_rot0_x(
         a: f64,
         b: f64,
         c: f64,
         d: f64,
-    ) -> (ApproxEq, ApproxEq, ApproxEq) {
-        let (a, b, _c, _d, sx, _sy) = assign_nanmat_assign_rot0(a, b, c, d);
-        (a, b, sx)
+    ) -> (
+        ApproxEq,
+        ApproxEq,
+        DontCare,
+        DontCare,
+        ApproxEq,
+        DontCare,
+        DontCare,
+    ) {
+        let (a, b, c, d, sx, sy, r) = assign_nanmat_assign_rot0(a, b, c, d);
+        (a, b, c.into(), d.into(), sx, sy.into(), r.into())
     }
     fn assign_nanmat_assign_rot0_y(
         a: f64,
         b: f64,
         c: f64,
         d: f64,
-    ) -> (ApproxEq, ApproxEq, ApproxEq) {
-        let (_a, _b, c, d, _sx, sy) = assign_nanmat_assign_rot0(a, b, c, d);
-        (c, d, sy)
+    ) -> (
+        DontCare,
+        DontCare,
+        ApproxEq,
+        ApproxEq,
+        DontCare,
+        ApproxEq,
+        DontCare,
+    ) {
+        let (a, b, c, d, sx, sy, r) = assign_nanmat_assign_rot0(a, b, c, d);
+        (a.into(), b.into(), c, d, sx.into(), sy, r.into())
     }
+    fn approx_care_x(
+        a: f64,
+        b: f64,
+        sx: f64,
+    ) -> (
+        ApproxEq,
+        ApproxEq,
+        DontCare,
+        DontCare,
+        ApproxEq,
+        DontCare,
+        DontCare,
+    ) {
+        (ApproxEq(a), ApproxEq(b), DC, DC, ApproxEq(sx), DC, DC)
+    }
+    fn approx_care_y(
+        c: f64,
+        d: f64,
+        sy: f64,
+    ) -> (
+        DontCare,
+        DontCare,
+        ApproxEq,
+        ApproxEq,
+        DontCare,
+        ApproxEq,
+        DontCare,
+    ) {
+        (DC, DC, ApproxEq(c), ApproxEq(d), DC, ApproxEq(sy), DC)
+    }
+
+    // no skew
+    assert_eq!(
+        assign_nanmat_assign_rot0_y(-1.0, 0.0, 0.0, -1.0),
+        approx_care_y(0.0, 1.0, 1.0),
+        "-1.0, 0.0, 0.0, -1.0 y",
+    );
+    assert_eq!(
+        assign_nanmat_assign_rot0_prev_rot(f64::NAN, f64::NAN, f64::NAN, f64::NAN),
+        ApproxEq(f64::NAN),
+        "nan, nan, nan, nan prev_rot",
+    );
+    assert_eq!(
+        assign_nanmat_assign_rot0_x(f64::NAN, f64::NAN, f64::NAN, f64::NAN),
+        approx_care_x(0.0, 0.0, f64::NAN),
+        "nan, nan, nan, nan x",
+    );
+    assert_eq!(
+        assign_nanmat_assign_rot0_y(0.0, 0.0, 0.0, -1.0),
+        approx_care_y(-1.0, 0.0, 1.0),
+        "0.0, 0.0, 0.0, -1.0 y",
+    );
+
+    //
+    //
+    //
+    //
+
+    // assign_nanmat_assign_rot0_prev_rot
+    assert_eq!(
+        assign_nanmat_assign_rot0_prev_rot(0.0, 0.0, 0.0, 0.0),
+        ApproxEq(0.0),
+        "0.0, 0.0, 0.0, 0.0 prev_rot", // zero
+    );
+    assert_eq!(
+        assign_nanmat_assign_rot0_prev_rot(1.0, 0.0, 0.0, 1.0),
+        ApproxEq(0.0),
+        "1.0, 0.0, 0.0, 1.0 prev_rot", // id
+    );
+    assert_eq!(
+        assign_nanmat_assign_rot0_prev_rot(0.0, 1.0, 1.0, 0.0),
+        ApproxEq(std::f64::consts::PI / 2.0), // 90
+        "0.0, 1.0, 1.0, 0.0 prev_rot",        // -id
+    );
+    assert_eq!(
+        assign_nanmat_assign_rot0_prev_rot(1.0, 1.0, 1.0, 1.0),
+        ApproxEq(std::f64::consts::PI / 4.0), // 45
+        "1.0, 1.0, 1.0, 1.0 prev_rot",        // det=0
+    );
 
     // assign_nanmat_assign_rot0_x
     assert_eq!(
         assign_nanmat_assign_rot0_x(0.0, 0.0, 0.0, 0.0),
-        (ApproxEq(0.0), ApproxEq(0.0), ApproxEq(0.0)),
-        "0.0, 0.0, 0.0, 0.0", // zero
+        approx_care_x(0.0, 0.0, 0.0),
+        "0.0, 0.0, 0.0, 0.0 x", // zero
     );
     assert_eq!(
         assign_nanmat_assign_rot0_x(1.0, 0.0, 0.0, 1.0),
-        (ApproxEq(1.0), ApproxEq(0.0), ApproxEq(1.0)),
-        "1.0, 0.0, 0.0, 1.0", // id
+        approx_care_x(1.0, 0.0, 1.0),
+        "1.0, 0.0, 0.0, 1.0 x", // id
     );
     assert_eq!(
-        assign_nanmat_assign_rot0_x(1.0, 0.0, 0.0, 1.0),
-        (ApproxEq(1.0), ApproxEq(0.0), ApproxEq(1.0)),
-        "0.0, 1.0, 1.0, 0.0", // -id
+        assign_nanmat_assign_rot0_x(0.0, 1.0, 1.0, 0.0),
+        approx_care_x(1.0, 0.0, 1.0),
+        "0.0, 1.0, 1.0, 0.0 x", // -id
     );
     assert_eq!(
         assign_nanmat_assign_rot0_x(1.0, 1.0, 1.0, 1.0),
-        (
-            ApproxEq(f64::sqrt(2.0)),
-            ApproxEq(0.0),
-            ApproxEq(f64::sqrt(2.0))
-        ),
-        "1.0, 1.0, 1.0, 1.0", // det=0
+        approx_care_x(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+        "1.0, 1.0, 1.0, 1.0 x", // det=0
     );
     assert_eq!(
         assign_nanmat_assign_rot0_x(1.0, 1.0, f64::NAN, 1.0),
-        (
-            ApproxEq(f64::sqrt(2.0)),
-            ApproxEq(0.0),
-            ApproxEq(f64::sqrt(2.0))
-        ),
-        "1.0, 1.0, nan, 1.0",
+        approx_care_x(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+        "1.0, 1.0, nan, 1.0 x",
     );
     assert_eq!(
         assign_nanmat_assign_rot0_x(1.0, 1.0, 1.0, f64::NAN),
-        (
-            ApproxEq(f64::sqrt(2.0)),
-            ApproxEq(0.0),
-            ApproxEq(f64::sqrt(2.0))
-        ),
-        "1.0, 1.0, 1.0, nan",
+        approx_care_x(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+        "1.0, 1.0, 1.0, nan x",
     );
     assert_eq!(
         assign_nanmat_assign_rot0_x(1.0, 1.0, f64::NAN, f64::NAN),
-        (
-            ApproxEq(f64::sqrt(2.0)),
-            ApproxEq(0.0),
-            ApproxEq(f64::sqrt(2.0))
-        ),
-        "1.0, 1.0, nan, nan",
+        approx_care_x(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+        "1.0, 1.0, nan, nan x",
     );
 
     // assign_natmat_assign_rot0_y
     assert_eq!(
         assign_nanmat_assign_rot0_y(0.0, 0.0, 0.0, 0.0),
-        (ApproxEq(0.0), ApproxEq(0.0), ApproxEq(0.0)),
-        "0.0, 0.0, 0.0, 0.0", // zero
+        approx_care_y(0.0, 0.0, 0.0),
+        "0.0, 0.0, 0.0, 0.0 y", // zero
     );
     assert_eq!(
         assign_nanmat_assign_rot0_y(1.0, 0.0, 0.0, 1.0),
-        (ApproxEq(0.0), ApproxEq(1.0), ApproxEq(1.0)),
-        "1.0, 0.0, 0.0, 1.0", // id
+        approx_care_y(0.0, 1.0, 1.0),
+        "1.0, 0.0, 0.0, 1.0 y", // id
     );
     assert_eq!(
-        assign_nanmat_assign_rot0_y(1.0, 0.0, 0.0, 1.0),
-        (ApproxEq(0.0), ApproxEq(-1.0), ApproxEq(-1.0)),
-        "0.0, 1.0, 1.0, 0.0", // -id
+        assign_nanmat_assign_rot0_y(0.0, 1.0, 1.0, 0.0),
+        approx_care_y(0.0, -1.0, -1.0),
+        "0.0, 1.0, 1.0, 0.0 y", // -id
     );
     assert_eq!(
         assign_nanmat_assign_rot0_y(1.0, 1.0, 1.0, 1.0),
-        (
-            ApproxEq(f64::sqrt(2.0)),
-            ApproxEq(0.0),
-            ApproxEq(f64::sqrt(2.0))
-        ),
-        "1.0, 1.0, 1.0, 1.0", // det=0
+        approx_care_y(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+        "1.0, 1.0, 1.0, 1.0 y", // det=0
     );
     assert_eq!(
         assign_nanmat_assign_rot0_y(1.0, f64::NAN, 1.0, 1.0),
-        (ApproxEq(-1.0), ApproxEq(1.0), ApproxEq(f64::sqrt(2.0))),
-        "1.0, nan, 1.0, 1.0",
+        approx_care_y(-1.0, 1.0, f64::sqrt(2.0)),
+        "1.0, nan, 1.0, 1.0 y",
     );
     assert_eq!(
         assign_nanmat_assign_rot0_y(f64::NAN, 1.0, 1.0, 1.0),
-        (ApproxEq(-1.0), ApproxEq(-1.0), ApproxEq(f64::sqrt(2.0))),
-        "nan, 1.0, 1.0, 1.0",
+        approx_care_y(-1.0, -1.0, f64::sqrt(2.0)),
+        "nan, 1.0, 1.0, 1.0 y",
     );
     assert_eq!(
         assign_nanmat_assign_rot0_y(f64::NAN, f64::NAN, 1.0, 1.0),
-        (
-            ApproxEq(-f64::sqrt(2.0)),
-            ApproxEq(0.0),
-            ApproxEq(f64::sqrt(2.0))
-        ),
-        "nan, nan, 1.0, 1.0",
+        approx_care_y(-f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+        "nan, nan, 1.0, 1.0 y",
     );
 }
