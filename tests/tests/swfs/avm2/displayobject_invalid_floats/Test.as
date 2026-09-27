@@ -7,7 +7,6 @@ package {
 
         public function Test() {
             TestZeroSkew();
-            return;
 
             TestWeirdMatrix();
         }
@@ -52,33 +51,13 @@ package {
                     }
                 }
             }
-            return;
         }
 
         public function TestWeirdMatrix() {
-            var a = new MovieClip();
-            a.rotation = 26.56;
-            a.scaleX = 2.2;
-            a.scaleY = -4.1;
-            a.x = 5;
-            a.y = 6;
-            // printChange(a, "scaleY", 4.1);
-
-            var m = new Matrix();
-            m.scale(2.2, -4.1);
-            m.rotate(26.56 * Math.PI / 180);
-            m.translate(5, 6);
-            // m.concat(skewMatrix(1, 2));
-            trace(a.transform.matrix);
-            trace(m);
-            // FIXME - we should also be testing Infinity and -Infinity here,
-            // but those give very weird values back in the matrix,
-            // and I havne't yet figured out how to reproduce them. Hopefully,
-            // there are no SWFs relying on the behavior.
-
             var limits1 = [0, NaN];
             var limits2 = [1, NaN];
             var limits3 = [1, 0];
+            var limits4 = [-1, 0];
             for each (var prop in props) {
                 trace("// " + prop + " = 0");
                 for(var idx1 = 0; idx1 < 2; idx1++) {
@@ -93,6 +72,9 @@ package {
                                 printChange(clip, prop, 0);
                                 trace("");
                                 clip.transform.matrix = new Matrix(limits3[idx1], limits3[idx2], limits3[idx3], limits3[idx4], 0, 0);
+                                printChange(clip, prop, 0);
+                                trace("");
+                                clip.transform.matrix = new Matrix(limits4[idx1], limits4[idx2], limits4[idx3], limits4[idx4], 0, 0);
                                 printChange(clip, prop, 0);
                                 trace("");
                             }

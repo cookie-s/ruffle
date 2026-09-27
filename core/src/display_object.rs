@@ -3436,32 +3436,22 @@ fn test_nannannan() {
             1.0
         };
 
-        let rotation_x = atan2(b, a);
-        let rotation_y = sig * atan2(-c, d);
-        let scale_x = (Percent::from_unit(f64::sqrt(ra * ra + rb * rb)));
-        let scale_y = (Percent::from_unit(sig * f64::sqrt(rc * rc + rd * rd)));
-        let rotation = (Degrees::from_radians(f64::atan2(rb, ra)));
-        let skew = notnan_or_zero(sig * (rotation_y) + rotation_x);
+        let nan_to_neg_inf = |x: f64| if x.is_nan() { f64::NEG_INFINITY } else { x };
+        let rotation_x = atan2(nan_to_neg_inf(rb), nan_to_neg_inf(ra));
+        let rotation_y = atan2(nan_to_neg_inf(-sig * rc), nan_to_neg_inf(sig * rd));
+        let scale_x = Percent::from_unit(f64::sqrt(ra * ra + rb * rb));
+        let scale_y = Percent::from_unit(sig * f64::sqrt(rc * rc + rd * rd));
+        let rotation = Degrees::from_radians(f64::atan2(rb, ra));
+        let skew = rotation_y - rotation_x;
 
         // set_rotation
         let degree = 0.0;
         let (sin_x, cos_x) = notnan_or_zero(degree).sin_cos();
         let (sin_y, cos_y) = (notnan_or_zero(degree) + skew).sin_cos();
-        if a == 0.0 && b == 0.0 && c == 0.0 && d == -1.0 {
-            dbg!(
-                scale_y.unit(),
-                cos_y,
-                skew,
-                sig,
-                rotation_y,
-                rotation_x,
-                f64::atan2(rb, ra),
-            );
-        }
         let a = notnan_or_zero(scale_x.unit()) * cos_x;
         let b = notnan_or_zero(scale_x.unit()) * sin_x;
-        let c = notnan_or_zero(sig * scale_y.unit()) * sin_y;
-        let d = notnan_or_zero(sig * scale_y.unit()) * cos_y;
+        let c = notnan_or_zero(scale_y.unit()) * -sin_y;
+        let d = notnan_or_zero(scale_y.unit()) * cos_y;
         (
             ApproxEq(a),
             ApproxEq(b),
