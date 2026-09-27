@@ -486,11 +486,27 @@ impl<'gc> DisplayObjectBase<'gc> {
     /// `_rotation` is accessed.
     fn cache_scale_rotation(&self) {
         if !self.scale_rotation_cached() {
+            let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+
             let Matrix { a, b, c, d, .. } = self.matrix.get();
-            let a = f64::from(a);
-            let b = f64::from(b);
-            let c = f64::from(c);
-            let d = f64::from(d);
+            let ra = f64::from(a);
+            let rb = f64::from(b);
+            let rc = f64::from(c);
+            let rd = f64::from(d);
+
+            let (a, b, c, d) = (
+                notnan_or_zero(ra),
+                notnan_or_zero(rb),
+                notnan_or_zero(rc),
+                notnan_or_zero(rd),
+            );
+            let atan2 = |x: f64, y: f64| {
+                if (x, y) == (0.0, 0.0) {
+                    -std::f64::consts::PI / 4.0
+                } else {
+                    f64::atan2(x, y)
+                }
+            };
 
             // If this object's transform matrix is:
             // [[a c tx]
@@ -506,29 +522,23 @@ impl<'gc> DisplayObjectBase<'gc> {
             // This can produce some surprising results due to the overlap between flipping/rotation/skewing.
             // For example, in Flash, using Modify->Transform->Flip Horizontal and then tracing _xscale, _yscale, and _rotation
             // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
-            let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
-            let det = notnan_or_zero(((a * d) - (b * c)).next_up());
-            let det2 = notnan_or_zero((notnan_or_zero(a * d) - notnan_or_zero(b * c)).next_up());
-            let rotation_x = f64::atan2(b, a);
-            let rotation_y = f64::atan2(-c, d);
+            let sig = if (a * d) > (b * c) {
+                1.0
+            } else if (a * d) < (b * c) {
+                -1.0
+            } else if ra.is_nan() {
+                1.0
+            } else {
+                -1.0
+            };
+            let rotation_x = atan2(b, a);
+            let rotation_y = atan2(-c, d);
             let scale_x = f64::sqrt(a * a + b * b);
-            let scale_y = det.signum() * f64::sqrt(c * c + d * d);
+            let scale_y = sig * f64::sqrt(c * c + d * d);
             self.rotation.set(Degrees::from_radians(rotation_x));
             self.scale_x.set(Percent::from_unit(scale_x));
             self.scale_y.set(Percent::from_unit(scale_y));
-            let rotation_x = if a.is_nan() && b.is_nan() {
-                f64::atan2(1.0, 1.0)
-            } else {
-                rotation_x
-            };
-            self.skew
-                .set((det2.signum() * notnan_or_zero(rotation_y) - notnan_or_zero(rotation_x)));
-            if a.is_nan() && b == 1.0 && c == 1.0 && d == 1.0 && false {
-                panic!(
-                    "a {a}, b {b}, c {c}, d {d} det {det} rotation_x {rotation_x} rotation_y {rotation_y} scale_x {scale_x} scale_y {scale_y} skew {} det2 {det2}",
-                    self.skew.get()
-                )
-            }
+            self.skew.set(sig * rotation_y + rotation_x);
         }
     }
 
@@ -572,7 +582,7 @@ impl<'gc> DisplayObjectBase<'gc> {
         matrix.a = notnan_or_zero(scale_x * cos_x) as f32;
         matrix.b = notnan_or_zero(scale_x * sin_x) as f32;
         matrix.c = notnan_or_zero(scale_y * -sin_y) as f32;
-        matrix.d = notnan_or_zero(scale_y * cos_y) as f32;
+        matrix.d = notnan_or_zero(scale_y * -cos_y) as f32;
         self.matrix.set(matrix);
 
         changed
