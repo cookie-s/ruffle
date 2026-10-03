@@ -6,6 +6,7 @@ package {
 		private var props:Array = ["rotation", "x", "y", "scaleX", "scaleY"];
 
 		public function Test():void {
+			TestWeirdMatrix_AssignNaN();
 		}
 
 		public function TestZeroSkew(): void {
@@ -126,6 +127,52 @@ package {
 								var clip:MovieClip = new MovieClip();
 								clip.transform.matrix = new Matrix(l1, l2, l3, l4, 0, 0);
 								printChange(clip, prop2, 0);
+								trace("");
+							}
+						}
+					}
+				}
+			}
+		}
+
+		public function TestWeirdMatrix_AssignNaN(): void {
+			// Assign NaN to each property to observe the special behavior.
+
+			var matVals1:Array = [2, 3];
+			var matVals2:Array = [0, NaN];
+			var matVals3:Array = [1, NaN];
+			var matVals4:Array = [1, 0];
+			var matVals5:Array = [-1, 0];
+
+			for each (var prop:String in props) {
+				trace("// TestWeirdMatrix: " + prop + " = NaN");
+				var clip:MovieClip = new MovieClip();
+
+				clip.transform.matrix = new Matrix(2, 0, 4, 0, 5, 6);
+				printChange(clip, prop, NaN);
+				trace("");
+				clip.transform.matrix = new Matrix(7, 0, 9, 0, 11, 12);
+				printChange(clip, prop, NaN);
+				trace("");
+
+				for(var idx1:int = 0; idx1 < 2; idx1++) {
+					for(var idx2:int = 0; idx2 < 2; idx2++) {
+						for(var idx3:int = 0; idx3 < 2; idx3++) {
+							for(var idx4:int = 0; idx4 < 2; idx4++) {
+								clip.transform.matrix = new Matrix(matVals1[idx1], matVals1[idx2], matVals1[idx3], matVals1[idx4], 0, 0);
+								printChange(clip, prop, NaN);
+								trace("");
+								clip.transform.matrix = new Matrix(matVals2[idx1], matVals2[idx2], matVals2[idx3], matVals2[idx4], 0, 0);
+								printChange(clip, prop, NaN);
+								trace("");
+								clip.transform.matrix = new Matrix(matVals3[idx1], matVals3[idx2], matVals3[idx3], matVals3[idx4], 0, 0);
+								printChange(clip, prop, NaN);
+								trace("");
+								clip.transform.matrix = new Matrix(matVals4[idx1], matVals4[idx2], matVals4[idx3], matVals4[idx4], 0, 0);
+								printChange(clip, prop, NaN);
+								trace("");
+								clip.transform.matrix = new Matrix(matVals5[idx1], matVals5[idx2], matVals5[idx3], matVals5[idx4], 0, 0);
+								printChange(clip, prop, NaN);
 								trace("");
 							}
 						}
