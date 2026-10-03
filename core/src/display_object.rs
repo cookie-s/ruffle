@@ -553,6 +553,12 @@ impl<'gc> DisplayObjectBase<'gc> {
             value = 0.0.into();
         }
 
+        let mut matrix = self.matrix.get();
+
+        if sync_transform_matrix::to_skip_update(value.unit(), &matrix) {
+            return changed;
+        }
+
         if !changed {
             return changed;
         }
@@ -571,7 +577,6 @@ impl<'gc> DisplayObjectBase<'gc> {
             self.skew.get(),
         );
 
-        let mut matrix = self.matrix.get();
         matrix.a = computed_matrix.a;
         matrix.b = computed_matrix.b;
         self.matrix.set(matrix);
@@ -596,6 +601,9 @@ impl<'gc> DisplayObjectBase<'gc> {
         if value.percent().is_nan() {
             value = 0.0.into();
         }
+
+        // Surprisingly, unlike scaleX or rotation setter, the scaleY setter
+        // does not appear to have an early-return when updating to NaN.
 
         if !changed {
             return changed;
