@@ -7,13 +7,17 @@ use crate::types::{Degrees, Percent};
 pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f64) {
     // TODO: Is this NEG_INFINITY the best value? Needs verification.
     let notnan_or_neginf = |x: f64| if x.is_nan() { f64::NEG_INFINITY } else { x };
+    let notnan_or_posinf = |x: f64| if x.is_nan() { f64::INFINITY } else { x };
+    let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
 
-    let atan2 = |x: f64, y: f64| {
-        if (x, y) == (0.0, 0.0) {
+    let atan2 = |y: f64, x: f64| {
+        if (y, x) == (0.0, 0.0) {
             // different from Number.atan2 or Math.atan2.
             std::f64::consts::PI / 2.0
+        } else if (y, x) == (0.0, f64::NEG_INFINITY) {
+            0.0
         } else {
-            f64::atan2(x, y)
+            f64::atan2(y, x)
         }
     };
 
@@ -41,10 +45,11 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
 
     let scale_x = f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
-    let is_zero_scale_x_upright = (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0;
-    let rotation = if is_zero_scale_x_upright {
+    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
         // Flash reports 0 here even if a, b, c are negative zeros,
         // for which f64::atan2 would return +-pi.
+        0.0
+    } else if a.is_nan() && b == 0.0 && !(notnan_or_zero(c) == notnan_or_zero(d)) {
         0.0
     } else {
         f64::atan2(b, a)
@@ -57,8 +62,9 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
             0.0
         } else {
             atan2(-sig * notnan_or_neginf(c), sig * notnan_or_neginf(d))
+                * if c.is_nan() { -1.0 } else { 1.0 } // FIXME!!
         };
-        let rotation_x = if is_zero_scale_x_upright {
+        let rotation_x = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
             // Consistent with `rotation` above; otherwise skew becomes -pi/2.
             0.0
         } else {
