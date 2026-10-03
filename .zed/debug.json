@@ -1,0 +1,44 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "adapter": "CodeLLDB",
+    "label": "Downloads/chirumiru.swf",
+    "program": "$ZED_WORKTREE_ROOT/target/debug/ruffle_desktop",
+    "request": "launch",
+    "sourceLanguages": ["rust"],
+    "args": ["/home/kcz/Downloads/chirumiru.swf"],
+    "build": {
+      "command": "cargo",
+      "args": ["build", "--package", "ruffle_desktop"],
+      "reveal": "always",
+      "reveal_target": "dock",
+      "hide": "never",
+      "shell": "system",
+      "show_summary": false,
+      "show_command": false
+    }
+  },
+  {
+    "adapter": "CodeLLDB",
+    "label": "swf4opcodeswfs",
+    "program": "$ZED_WORKTREE_ROOT/target/debug/ruffle_desktop",
+    "request": "launch",
+    "sourceLanguages": ["rust"],
+    "args": [
+      "/home/kcz/dev/ruffle/tests/tests/swfs/from_gnash/misc-swfc.all/swf4opcode/test.swf"
+    ],
+    "build": {
+      "command": "cargo",
+      "args": ["build", "--package", "ruffle_desktop"],
+      "reveal": "always",
+      "reveal_target": "dock",
+      "hide": "never",
+      "shell": "system",
+      "show_summary": false,
+      "show_command": false
+    }
+  }
+]
