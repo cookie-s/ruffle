@@ -541,6 +541,10 @@ impl<'gc> DisplayObjectBase<'gc> {
             return changed;
         }
 
+        if !changed {
+            return changed;
+        }
+
         let skew = self.skew.get();
         let cos_x = f64::cos(degrees.into_radians());
         let sin_x = f64::sin(degrees.into_radians());
@@ -576,6 +580,10 @@ impl<'gc> DisplayObjectBase<'gc> {
             value = 0.0.into();
         }
 
+        if !changed {
+            return changed;
+        }
+
         // Similarly, a rotation of `NaN` can be reported to ActionScript, but we
         // treat it as 0.0 when calculating the matrix
         let mut rot = self.rotation.get().into_radians();
@@ -609,6 +617,10 @@ impl<'gc> DisplayObjectBase<'gc> {
         // the purposes of updating the matrix
         if value.percent().is_nan() {
             value = 0.0.into();
+        }
+
+        if !changed {
+            return changed;
         }
 
         // Similarly, a rotation of `NaN` can be reported to ActionScript, but we
