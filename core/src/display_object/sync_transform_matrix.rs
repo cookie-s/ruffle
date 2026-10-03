@@ -103,5 +103,5 @@ pub(crate) fn to_skip_update(value: f64, matrix: &Matrix) -> bool {
     // values, so for now, we never modify the matrix if the
     // rotation is NaN. Hopefully, there are no SWFs depending
     // on the weird behavior when b or d is non-zero.
-    value.is_nan() && matrix.b == 0.0 && matrix.c == 0.0 && !matrix.a.is_nan() && !matrix.d.is_nan()
+    value.is_nan() && matrix.a == 0.0 && matrix.b == 0.0 && matrix.c == 0.0 && matrix.d >= 0.0
 }
