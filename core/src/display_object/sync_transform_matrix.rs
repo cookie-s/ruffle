@@ -6,6 +6,8 @@ use crate::types::{Degrees, Percent};
 
 pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f64) {
     let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+    // TODO: Is this NEG_INFINITY the best value? Needs verification.
+    let notnan_or_neginf = |x: f64| if x.is_nan() { f64::NEG_INFINITY } else { x };
 
     let atan2 = |x: f64, y: f64| {
         if (x, y) == (0.0, 0.0) {
@@ -54,11 +56,11 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     } else {
         1.0
     };
-    let rotation_x = atan2(b, a);
-    let rotation_y = atan2(-c, d);
+    let rotation_x = atan2(notnan_or_neginf(rb), notnan_or_neginf(ra));
+    let rotation_y = atan2(notnan_or_neginf(-sig * rc), notnan_or_neginf(sig * rd));
     let scale_x = f64::sqrt(ra * ra + rb * rb);
     let scale_y = sig * f64::sqrt(rc * rc + rd * rd);
-    let skew = sig * rotation_y * -1.0 - rotation_x;
+    let skew = rotation_y - rotation_x;
 
     let rotation = Degrees::from_radians(f64::atan2(rb, ra));
     let scale_x = Percent::from_unit(scale_x);
@@ -83,8 +85,8 @@ pub(crate) fn matrix_from_props(
     Matrix {
         a: (notnan_or_zero(scale_x) * cos_x) as f32,
         b: (notnan_or_zero(scale_x) * sin_x) as f32,
-        c: (notnan_or_zero(scale_y.signum() * scale_y) * sin_y) as f32,
-        d: (notnan_or_zero(scale_y.signum() * scale_y) * cos_y) as f32,
+        c: (notnan_or_zero(scale_y) * -sin_y) as f32,
+        d: (notnan_or_zero(scale_y) * cos_y) as f32,
         ..Default::default()
     }
 }
