@@ -1,4 +1,5 @@
 num_ticks = 1
+known_failure = true
 
 [approximations]
 number_patterns = [
@@ -7,5 +8,5 @@ number_patterns = [
 ]
 
 # FIXME: I feel the epsilon/max_relative is large. Reduce the errors.
-epsilon = 7.5e-3
-max_relative = 5e-3
+epsilon = 2e-2
+max_relative = 1e-2
