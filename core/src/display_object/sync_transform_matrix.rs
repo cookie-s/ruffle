@@ -5,7 +5,6 @@ use ruffle_render::matrix::Matrix;
 use crate::types::{Degrees, Percent};
 
 pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f64) {
-    let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
     // TODO: Is this NEG_INFINITY the best value? Needs verification.
     let notnan_or_neginf = |x: f64| if x.is_nan() { f64::NEG_INFINITY } else { x };
 
@@ -19,17 +18,10 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     };
 
     let Matrix { a, b, c, d, .. } = matrix;
-    let ra = f64::from(a);
-    let rb = f64::from(b);
-    let rc = f64::from(c);
-    let rd = f64::from(d);
-
-    let (a, b, c, d) = (
-        notnan_or_zero(ra),
-        notnan_or_zero(rb),
-        notnan_or_zero(rc),
-        notnan_or_zero(rd),
-    );
+    let a = f64::from(a);
+    let b = f64::from(b);
+    let c = f64::from(c);
+    let d = f64::from(d);
 
     // If this object's transform matrix is:
     // [[a c tx]
@@ -45,13 +37,13 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     // This can produce some surprising results due to the overlap between flipping/rotation/skewing.
     // For example, in Flash, using Modify->Transform->Flip Horizontal and then tracing _xscale, _yscale, and _rotation
     // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
-    let sig = if (ra * rd) < (rb * rc) { -1.0 } else { 1.0 };
+    let sig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
 
-    let rotation_x = atan2(notnan_or_neginf(rb), notnan_or_neginf(ra));
-    let rotation_y = atan2(notnan_or_neginf(-sig * rc), notnan_or_neginf(sig * rd));
-    let scale_x = f64::sqrt(ra * ra + rb * rb);
-    let scale_y = sig * f64::sqrt(rc * rc + rd * rd);
-    let rotation = f64::atan2(rb, ra);
+    let rotation_x = atan2(notnan_or_neginf(b), notnan_or_neginf(a));
+    let rotation_y = atan2(notnan_or_neginf(-sig * c), notnan_or_neginf(sig * d));
+    let scale_x = f64::sqrt(a * a + b * b);
+    let scale_y = sig * f64::sqrt(c * c + d * d);
+    let rotation = f64::atan2(b, a);
     let skew = (rotation_y - rotation_x + std::f64::consts::PI)
         .rem_euclid(2.0 * std::f64::consts::PI)
         - std::f64::consts::PI;
