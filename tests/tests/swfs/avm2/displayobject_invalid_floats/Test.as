@@ -1,16 +1,46 @@
 package {
 	import flash.display.MovieClip;
 	import flash.geom.Matrix;
+	import flash.events.KeyboardEvent;
 
 	public class Test extends MovieClip {
 		private var props:Array = ["rotation", "scaleX", "scaleY"];
 
 		public function Test():void {
-			TestWeirdMatrix_AssignNaN();
+			stage.addEventListener("keyDown", function (e: KeyboardEvent): void {
+			    switch(e.charCode - 48) {
+					case 1:
+						TestZeroSkew();
+						break;
 
-			TestWeirdMatrix();
-
-			TestZeroSkew();
+					// TestWeirdMatrix family:
+					//   Assign arbitrary matrix to clip.transform.matrix and verify the change in property values.
+					//   The matrices can be "invalid." For example, NaN, -0, Infinity, or singular matrix.
+					case 2:
+						TestWeirdMatrix_RandomPositive();
+						break;
+					case 3:
+						TestWeirdMatrix_OneZero();
+						break;
+					case 4:
+						TestWeirdMatrix_NaNOneZero();
+						break;
+					case 5:
+						TestWeirdMatrix_MinusZero();
+						break;
+					case 6:
+						TestWeirdMatrix_AssignNaN();
+						break;
+					case 7:
+    					// FIXME - we should also be testing Infinity and -Infinity here,
+    					// but those give very weird values back in the matrix,
+    					// and I havne't yet figured out how to reproduce them. Hopefully,
+    					// there are no SWFs relying on the behavior.
+    					// Remove this `return` when that's fixed.
+						TestWeirdMatrix_Infinite();
+						break;
+				}
+			});
 		}
 
 		public function TestZeroSkew(): void {
@@ -58,48 +88,8 @@ package {
 			}
 		}
 
-		public function TestWeirdMatrix(): void {
-			// Assign arbitrary matrix to clip.transform.matrix and verify the change in property values.
-			// The matrices can be "invalid." For example, NaN, -0, Infinity, or singular matrix.
-
-			TestWeirdMatrix_RandomPositive();
-
-
-
-
-
-
-
-			TestWeirdMatrix_OneZero();
-
-
-
-
-
-
-
-			TestWeirdMatrix_NaNOneZero();
-
-
-
-
-
-
-
-			TestWeirdMatrix_MinusZero();
-
-			// FIXME - we should also be testing Infinity and -Infinity here,
-			// but those give very weird values back in the matrix,
-			// and I havne't yet figured out how to reproduce them. Hopefully,
-			// there are no SWFs relying on the behavior.
-			// Remove this `return` when that's fixed.
-			return;
-
-			TestWeirdMatrix_Infinite();
-		}
-
 		public function TestWeirdMatrix_Infinite(): void {
-			var matVals:Array = [0, 1, NaN, Infinity, -Infinity];
+			var matVals:Array = [0, 1, Infinity, -Infinity];
 
 			for each (var val:Number in matVals) {
     			for each (var prop2:String in props) {
