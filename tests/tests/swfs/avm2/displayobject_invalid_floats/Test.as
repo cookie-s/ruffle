@@ -7,6 +7,8 @@ package {
 
 		public function Test():void {
 			TestWeirdMatrix_AssignNaN();
+
+			TestWeirdMatrix();
 		}
 
 		public function TestZeroSkew(): void {
