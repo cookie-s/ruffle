@@ -39,12 +39,15 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
     let sig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
 
-    let rotation_x = atan2(notnan_or_neginf(b), notnan_or_neginf(a));
-    let rotation_y = atan2(notnan_or_neginf(-sig * c), notnan_or_neginf(sig * d));
     let scale_x = f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
     let rotation = f64::atan2(b, a);
-    let skew = (rotation_y - rotation_x).rem_euclid(2.0 * std::f64::consts::PI);
+    let skew = {
+        // `sig` multiplication is required here for pi difference.
+        let rotation_y = atan2(-sig * notnan_or_neginf(c), sig * notnan_or_neginf(d));
+        let rotation_x = atan2(notnan_or_neginf(b), notnan_or_neginf(a));
+        (rotation_y - rotation_x).rem_euclid(2.0 * std::f64::consts::PI)
+    };
 
     let scale_x = Percent::from_unit(scale_x);
     let scale_y = Percent::from_unit(scale_y);
