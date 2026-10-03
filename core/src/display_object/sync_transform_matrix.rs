@@ -79,16 +79,24 @@ pub(crate) fn matrix_from_props(
 ) -> Matrix {
     let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
 
-    let (sin_x, cos_x) = notnan_or_zero(degrees.into_radians()).sin_cos();
-    let (sin_y, cos_y) = (notnan_or_zero(degrees.into_radians()) + skew).sin_cos();
-    let scale_x = scale_x.unit();
-    let scale_y = scale_y.unit();
+    // Note - in order to match Flash's behavior, the 'scale_x'/`scale_y` field is set to NaN
+    // (which gets reported back to ActionScript), but we treat it as 0 for the purposes of
+    // updating the matrix
+    let scale_x = notnan_or_zero(scale_x.unit());
+    let scale_y = notnan_or_zero(scale_y.unit());
+
+    // Similarly, a rotation of `NaN` can be reported to ActionScript, but we
+    // treat it as 0.0 when calculating the matrix
+    let degrees = notnan_or_zero(degrees.into_radians());
+
+    let (sin_x, cos_x) = degrees.sin_cos();
+    let (sin_y, cos_y) = (degrees + skew).sin_cos();
 
     Matrix {
-        a: (notnan_or_zero(scale_x) * cos_x) as f32,
-        b: (notnan_or_zero(scale_x) * sin_x) as f32,
-        c: (notnan_or_zero(scale_y) * -sin_y) as f32,
-        d: (notnan_or_zero(scale_y) * cos_y) as f32,
+        a: (scale_x * cos_x) as f32,
+        b: (scale_x * sin_x) as f32,
+        c: (scale_y * -sin_y) as f32,
+        d: (scale_y * cos_y) as f32,
         ..Default::default()
     }
 }
