@@ -42,7 +42,13 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
 
     let scale_x = f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
-    let rotation = f64::atan2(b, a);
+    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
+        // Flash reports 0 here even if a, b, c are negative zeros,
+        // for which f64::atan2 would return +-pi.
+        0.0
+    } else {
+        f64::atan2(b, a)
+    };
     let skew = {
         // `sig` multiplication is required here for pi difference.
         let rotation_y = atan2(-sig * c, sig * d);
