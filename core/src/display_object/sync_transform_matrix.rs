@@ -42,7 +42,8 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
 
     let scale_x = f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
-    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
+    let is_zero_scale_x_upright = (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0;
+    let rotation = if is_zero_scale_x_upright {
         // Flash reports 0 here even if a, b, c are negative zeros,
         // for which f64::atan2 would return +-pi.
         0.0
@@ -51,8 +52,19 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     };
     let skew = {
         // `sig` multiplication is required here for pi difference.
-        let rotation_y = atan2(-sig * c, sig * d);
-        let rotation_x = atan2(b, a);
+        let rotation_y = if (b, c, d) == (0.0, 0.0, 0.0) && a > 0.0 {
+            // The y' axis has no direction. If x' is on the positive x-axis, Flash keeps
+            // y' aligned with it (skew 0), otherwise y' is treated as pointing at pi/2.
+            0.0
+        } else {
+            atan2(-sig * c, sig * d)
+        };
+        let rotation_x = if is_zero_scale_x_upright {
+            // Consistent with `rotation` above; otherwise skew becomes -pi/2.
+            0.0
+        } else {
+            atan2(b, a)
+        };
         (rotation_y - rotation_x).rem_euclid(2.0 * std::f64::consts::PI)
     };
 
