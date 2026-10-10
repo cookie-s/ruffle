@@ -112,7 +112,9 @@ package {
 			var matVals2:Array = [1, NaN];
 			var matVals3:Array = [1, 0];
 			var matVals4:Array = [-1, 0];
-			var matVals5:Array = [2, 3];
+			var matVals5:Array = [-0, 1];
+			var matVals6:Array = [-0, 0];
+			var matVals7:Array = [2, 3]; // Random numbers. Some prime numbers for no reason.
 			for each (var prop1:String in props) {
 				trace("// TestAssignMatrix: " + prop1 + " = finite number");
 				for(var idx1:int = 0; idx1 < 2; idx1++) {
@@ -135,8 +137,17 @@ package {
 								clip.transform.matrix = new Matrix(matVals5[idx1], matVals5[idx2], matVals5[idx3], matVals5[idx4], 0, 0);
 								printChange(clip, prop1, 0);
 								trace("");
-								clip.transform.matrix = new Matrix(matVals5[idx1], matVals5[idx2], matVals5[idx3], matVals5[idx4], 0, 0);
-								printChange(clip, prop1, 5);
+								clip.transform.matrix = new Matrix(matVals6[idx1], matVals6[idx2], matVals6[idx3], matVals6[idx4], 0, 0);
+								printChange(clip, prop1, 0);
+								trace("");
+								clip.transform.matrix = new Matrix(matVals6[idx1], matVals6[idx2], matVals6[idx3], matVals6[idx4], 0, 0);
+								printChange(clip, prop1, -0); // -0
+								trace("");
+								clip.transform.matrix = new Matrix(matVals7[idx1], matVals7[idx2], matVals7[idx3], matVals7[idx4], 0, 0);
+								printChange(clip, prop1, 0);
+								trace("");
+								clip.transform.matrix = new Matrix(matVals7[idx1], matVals7[idx2], matVals7[idx3], matVals7[idx4], 0, 0);
+								printChange(clip, prop1, 5); // non zero
 								trace("");
 							}
 						}
@@ -151,13 +162,13 @@ package {
 			// Remove this `return` when that's fixed.
 			return;
 
-			var matVals6:Array = [0, Infinity, -Infinity];
+			var matValsInfinite:Array = [0, 1, NaN, Infinity, -Infinity];
 			for each (var prop2:String in props) {
-				trace("// TestAssignMatrix: " + prop2 + " = 0");
-				for each (var l1 in matVals6) {
-					for each (var l2 in matVals6) {
-						for each (var l3 in matVals6) {
-							for each (var l4 in matVals6) {
+                trace("// TestAssignMatrix: " + prop2 + " = 0");
+				for each (var l1 in matValsInfinite) {
+					for each (var l2 in matValsInfinite) {
+						for each (var l3 in matValsInfinite) {
+							for each (var l4 in matValsInfinite) {
 								var clip:MovieClip = new MovieClip();
 								clip.transform.matrix = new Matrix(l1, l2, l3, l4, 0, 0);
 								printChange(clip, prop2, 0);
