@@ -3429,6 +3429,20 @@ mod tests {
         }
 
         #[test]
+        fn test_all_nan() {
+            assert_eq!(
+                assign_nanmat_assign_rot0_prev_rot(f64::NAN, f64::NAN, f64::NAN, f64::NAN),
+                ApproxEq(f64::NAN),
+                "nan, nan, nan, nan prev_rot",
+            );
+            assert_eq!(
+                assign_nanmat_assign_rot0_x(f64::NAN, f64::NAN, f64::NAN, f64::NAN),
+                approx_care_x(0.0, 0.0, f64::NAN),
+                "nan, nan, nan, nan x",
+            );
+        }
+
+        #[test]
         fn test_no_skew() {
             // no skew
             assert_eq!(
