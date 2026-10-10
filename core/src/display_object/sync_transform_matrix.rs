@@ -45,18 +45,18 @@ pub(crate) fn matrix_from_props(
     scale_y: Percent,
     skew: f64,
 ) -> Matrix {
-    let cos_x = f64::cos(degrees.into_radians());
-    let sin_x = f64::sin(degrees.into_radians());
-    let cos_y = f64::cos(degrees.into_radians() + skew);
-    let sin_y = f64::sin(degrees.into_radians() + skew);
+    let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
+
+    let (sin_x, cos_x) = notnan_or_zero(degrees.into_radians()).sin_cos();
+    let (sin_y, cos_y) = (notnan_or_zero(degrees.into_radians()) + skew).sin_cos();
     let scale_x = scale_x.unit();
     let scale_y = scale_y.unit();
 
     Matrix {
-        a: (scale_x * cos_x) as f32,
-        b: (scale_x * sin_x) as f32,
-        c: (scale_y * -sin_y) as f32,
-        d: (scale_y * cos_y) as f32,
+        a: (notnan_or_zero(scale_x) * cos_x) as f32,
+        b: (notnan_or_zero(scale_x) * sin_x) as f32,
+        c: (notnan_or_zero(scale_y) * -sin_y) as f32,
+        d: (notnan_or_zero(scale_y) * cos_y) as f32,
         ..Default::default()
     }
 }
