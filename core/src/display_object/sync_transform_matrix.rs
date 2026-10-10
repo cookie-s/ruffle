@@ -38,19 +38,8 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     // This can produce some surprising results due to the overlap between flipping/rotation/skewing.
     // For example, in Flash, using Modify->Transform->Flip Horizontal and then tracing _xscale, _yscale, and _rotation
     // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
-    let sig = {
-        let notnan_or_zero = |x: f64| if x.is_nan() { 0.0 } else { x };
-        #[allow(clippy::if_same_then_else)]
-        if a.is_nan() || b.is_nan() {
-            1.0
-        } else if notnan_or_zero(a * d) > notnan_or_zero(b * c) {
-            1.0
-        } else if notnan_or_zero(a * d) < notnan_or_zero(b * c) {
-            -1.0
-        } else {
-            1.0
-        }
-    };
+    let sig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
+
     let rotation_x = atan2(b, a);
     let rotation_y = atan2(-sig * c, sig * d);
     let scale_x = f64::sqrt(a * a + b * b);
