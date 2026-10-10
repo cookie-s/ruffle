@@ -45,9 +45,7 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     let scale_x = f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
     let rotation = f64::atan2(b, a);
-    let skew = (rotation_y - rotation_x + std::f64::consts::PI)
-        .rem_euclid(2.0 * std::f64::consts::PI)
-        - std::f64::consts::PI;
+    let skew = (rotation_y - rotation_x).rem_euclid(2.0 * std::f64::consts::PI);
 
     let scale_x = Percent::from_unit(scale_x);
     let scale_y = Percent::from_unit(scale_y);
