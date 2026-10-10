@@ -3479,6 +3479,16 @@ mod tests {
                 ApproxEq(std::f64::consts::PI / 4.0), // 45
                 "1.0, 1.0, 1.0, 1.0 prev_rot",        // det=0
             );
+            assert_eq!(
+                assign_nanmat_assign_rot0_prev_rot(-0.0, -0.0, -0.0, 1.0),
+                ApproxEq(0.0),
+                "-0.0, -0.0, -0.0, 1.0 prev_rot",
+            );
+            assert_eq!(
+                assign_nanmat_assign_rot0_prev_rot(-0.0, -0.0, -0.0, 0.0),
+                ApproxEq(-std::f64::consts::PI), // -180
+                "-0.0, -0.0, -0.0, 0.0 prev_rot",
+            );
         }
 
         #[test]
