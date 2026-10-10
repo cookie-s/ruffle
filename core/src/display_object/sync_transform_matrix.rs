@@ -5,6 +5,19 @@ use ruffle_render::matrix::Matrix;
 use crate::types::{Degrees, Percent};
 
 pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f64) {
+    let atan2 = |x: f64, y: f64| {
+        // TODO: Is this NEG_INFINITY the best value? Needs verification.
+        let notnan_or_neginf = |x: f64| if x.is_nan() { f64::NEG_INFINITY } else { x };
+
+        let x = notnan_or_neginf(x);
+        let y = notnan_or_neginf(y);
+        if (x, y) == (0.0, 0.0) {
+            // different value from Number.atan2 or Math.atan2.
+            return std::f64::consts::PI / 2.0;
+        }
+        f64::atan2(x, y)
+    };
+
     let Matrix { a, b, c, d, .. } = matrix;
     let a = f64::from(a);
     let b = f64::from(b);
@@ -38,13 +51,13 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
             1.0
         }
     };
-    let rotation_x = f64::atan2(b, a);
-    let rotation_y = f64::atan2(-sig * c, sig * d);
+    let rotation_x = atan2(b, a);
+    let rotation_y = atan2(-sig * c, sig * d);
     let scale_x = f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
     let skew = rotation_y - rotation_x;
 
-    let rotation = Degrees::from_radians(rotation_x);
+    let rotation = Degrees::from_radians(f64::atan2(b, a));
     let scale_x = Percent::from_unit(scale_x);
     let scale_y = Percent::from_unit(scale_y);
 
