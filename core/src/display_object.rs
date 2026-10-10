@@ -3331,7 +3331,7 @@ mod tests {
         }
 
         #[rustfmt::skip]
-        fn assign_nanmat_assign_rot0( ra: f64, rb: f64, rc: f64, rd: f64, ) -> (
+        fn assign_nanmat_assign_rot( ra: f64, rb: f64, rc: f64, rd: f64, rot: f64) -> (
             ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq,
         ) {
             // cache_scale_rotation
@@ -3346,8 +3346,8 @@ mod tests {
 
             let (rotation, scale_x, scale_y, skew) = sync_transform_matrix::props_from_matrix(matrix);
 
-            // set_rotation(0.0)
-            let set_degrees = Degrees::from_radians(0.0);
+            // set_rotation
+            let set_degrees = Degrees::from_radians(rot);
 
             let Matrix { a, b, c, d, .. } =
                 sync_transform_matrix::matrix_from_props(set_degrees, scale_x, scale_y, skew);
@@ -3363,9 +3363,39 @@ mod tests {
             )
         }
 
+        #[rustfmt::skip]
+        fn assign_nanmat_assign_rot0( ra: f64, rb: f64, rc: f64, rd: f64, ) -> (
+            ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq,
+        ) {
+            assign_nanmat_assign_rot(ra,rb,rc,rd, 0.0)
+        }
+
+        #[rustfmt::skip]
+        fn assign_rotnan( ra: f64, rb: f64, rc: f64, rd: f64, ) -> (
+            ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq, ApproxEq,
+        ) {
+            assign_nanmat_assign_rot(ra,rb,rc,rd, f64::NAN)
+        }
+
         fn assign_nanmat_assign_rot0_prev_rot(a: f64, b: f64, c: f64, d: f64) -> ApproxEq {
             let (_a, _b, _c, _d, _sx, _sy, r) = assign_nanmat_assign_rot0(a, b, c, d);
             r
+        }
+
+        #[rustfmt::skip]
+        fn assign_rotnan_x( a: f64, b: f64, c: f64, d: f64, ) -> (
+            ApproxEq, ApproxEq, DontCare, DontCare, ApproxEq, DontCare, DontCare,
+        ) {
+            let (a, b, c, d, sx, sy, r) = assign_rotnan(a, b, c, d);
+            (a, b, c.into(), d.into(), sx, sy.into(), r.into())
+        }
+
+        #[rustfmt::skip]
+        fn assign_rotnan_y( a: f64, b: f64, c: f64, d: f64, ) -> (
+            DontCare, DontCare, ApproxEq, ApproxEq, DontCare, ApproxEq, DontCare,
+        ) {
+            let (a, b, c, d, sx, sy, r) = assign_rotnan(a, b, c, d);
+            (a.into(), b.into(), c, d, sx.into(), sy, r.into())
         }
 
         #[rustfmt::skip]
@@ -3512,6 +3542,40 @@ mod tests {
                 assign_nanmat_assign_rot0_y(f64::NAN, f64::NAN, 1.0, 1.0),
                 approx_care_y(-f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
                 "nan, nan, 1.0, 1.0 y",
+            );
+        }
+
+        #[test]
+        fn test_assign_rotnan() {
+            assert_eq!(
+                assign_rotnan_x(1.0, 1.0, 1.0, 1.0),
+                approx_care_x(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+                "1.0, 1.0, 1.0, 1.0 x",
+            );
+            assert_eq!(
+                assign_rotnan_y(1.0, 1.0, 1.0, 1.0),
+                approx_care_y(f64::sqrt(2.0), 0.0, f64::sqrt(2.0)),
+                "1.0, 1.0, 1.0, 1.0 y",
+            );
+            assert_eq!(
+                assign_rotnan_x(f64::NAN, f64::NAN, f64::NAN, f64::NAN),
+                approx_care_x(0.0, 0.0, f64::NAN),
+                "nan, nan, nan, nan x",
+            );
+            assert_eq!(
+                assign_rotnan_y(f64::NAN, f64::NAN, f64::NAN, f64::NAN),
+                approx_care_y(0.0, 0.0, f64::NAN),
+                "nan, nan, nan, nan y",
+            );
+            assert_eq!(
+                assign_rotnan_x(2.0, 2.0, 2.0, 2.0),
+                approx_care_x(f64::sqrt(8.0), 0.0, f64::sqrt(8.0)),
+                "2.0, 2.0, 2.0, 2.0 x",
+            );
+            assert_eq!(
+                assign_rotnan_x(-1.0, 0.0, -1.0, 0.0),
+                approx_care_x(1.0, 0.0, 1.0),
+                "-1.0, 0.0, -1.0, 0.0 x",
             );
         }
     }
