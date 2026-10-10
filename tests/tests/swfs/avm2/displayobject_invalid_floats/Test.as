@@ -3,7 +3,7 @@ package {
 	import flash.geom.Matrix;
 
 	public class Test extends MovieClip {
-		private var props:Array = ["rotation", "x", "y", "scaleX", "scaleY"];
+		private var props:Array = ["rotation", "scaleX", "scaleY"];
 
 		public function Test():void {
 			TestAssignMatrix_AssignNaN();
