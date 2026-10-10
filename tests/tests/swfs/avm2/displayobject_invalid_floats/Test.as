@@ -9,6 +9,8 @@ package {
 			TestAssignMatrix_AssignNaN();
 
 			TestAssignMatrix();
+
+			TestZeroSkew();
 		}
 
 		public function TestZeroSkew(): void {
