@@ -1,10 +1,6 @@
 name: Test extension builder Dockerfile
 
 on:
-  #Run weekly every Thursday (one day before AMO submission)
-  schedule:
-    - cron: "0 2 * * 5"
-
   #Allow for manual tests if needed
   workflow_dispatch:
 
