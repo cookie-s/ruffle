@@ -40,7 +40,15 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
     let sig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
 
-    let scale_x = f64::sqrt(a * a + b * b);
+    let xsig = if a < 0.0 && b == 0.0 && c == 0.0 && d > 0.0 {
+        // I feel `(b, c) == (0, 0)` is considered to be RotateSkew as "unspecified" internally.
+        // Under that condition, if a is negative and a and d are different, scaleX gets negative.
+        -1.0
+    } else {
+        1.0
+    };
+
+    let scale_x = xsig * f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
     let is_zero_scale_x_upright = (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0;
     let rotation = if is_zero_scale_x_upright {
