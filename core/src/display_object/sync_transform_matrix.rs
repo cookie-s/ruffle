@@ -41,55 +41,33 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
 
     let xsig = if a < 0.0 && b == 0.0 && c == 0.0 && d > 0.0 {
-        // I feel `(b, c) == (0, 0)` is considered to be RotateSkew as "unspecified" internally.
-        // Under that condition, if a is negative and a and d are different, scaleX gets negative.
         -1.0
     } else {
         1.0
     };
-
-    let sig = if xsig != -1.0 && (a * d) < (b * c) {
-        -1.0
-    } else {
-        1.0
-    };
+    let ysig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
 
     let scale_x = xsig * f64::sqrt(a * a + b * b);
-    let scale_y = sig * f64::sqrt(c * c + d * d);
-    let is_zero_scale_x_upright = (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0;
-    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d != 0.0 {
-        // FIXME: 5_minuszero requires this if.
+    let scale_y = xsig * ysig * f64::sqrt(c * c + d * d);
+    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
         0.0
     } else {
-        f64::atan2(b, a)
-            + if xsig == -1.0 {
-                -std::f64::consts::PI
-            } else {
-                0.0
-            }
+        // `xsig` multiplication is required here for pi difference.
+        f64::atan2(xsig * b, xsig * a)
     };
     let skew = {
-        // `sig` multiplication is required here for pi difference.
         let rotation_y = if (b, c, d) == (0.0, 0.0, 0.0) && a > 0.0 {
-            // The y' axis has no direction. If x' is on the positive x-axis, Flash keeps
-            // y' aligned with it (skew 0), otherwise y' is treated as pointing at pi/2.
             0.0
         } else {
-            atan2(-sig * c, sig * d)
+            // `ysig` multiplication is required here for pi difference.
+            atan2(-ysig * c, ysig * d)
         };
-        let rotation_x = if is_zero_scale_x_upright {
-            // Consistent with `rotation` above; otherwise skew becomes -pi/2.
+        let rotation_x = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
             0.0
         } else {
             atan2(b, a)
         };
-        (rotation_y - rotation_x
-            + if xsig == -1.0 {
-                std::f64::consts::PI
-            } else {
-                0.0
-            })
-        .rem_euclid(2.0 * std::f64::consts::PI)
+        (rotation_y - rotation_x).rem_euclid(2.0 * std::f64::consts::PI)
     };
 
     let scale_x = Percent::from_unit(scale_x);
