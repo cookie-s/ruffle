@@ -39,7 +39,6 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     // This can produce some surprising results due to the overlap between flipping/rotation/skewing.
     // For example, in Flash, using Modify->Transform->Flip Horizontal and then tracing _xscale, _yscale, and _rotation
     // will output 100, 100, and 180. (a horizontal flip could also be a 180 degree skew followed by 180 degree rotation!)
-    let sig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
 
     let xsig = if a < 0.0 && b == 0.0 && c == 0.0 && d > 0.0 {
         // I feel `(b, c) == (0, 0)` is considered to be RotateSkew as "unspecified" internally.
@@ -49,14 +48,25 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
         1.0
     };
 
+    let sig = if xsig != -1.0 && (a * d) < (b * c) {
+        -1.0
+    } else {
+        1.0
+    };
+
     let scale_x = xsig * f64::sqrt(a * a + b * b);
     let scale_y = sig * f64::sqrt(c * c + d * d);
     let is_zero_scale_x_upright = (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0;
-    let rotation = if is_zero_scale_x_upright {
-        // FIXME: do we need this branch?
+    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d != 0.0 {
+        // FIXME: 5_minuszero requires this if.
         0.0
     } else {
         f64::atan2(b, a)
+            + if xsig == -1.0 {
+                -std::f64::consts::PI
+            } else {
+                0.0
+            }
     };
     let skew = {
         // `sig` multiplication is required here for pi difference.
@@ -73,7 +83,13 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
         } else {
             atan2(b, a)
         };
-        (rotation_y - rotation_x).rem_euclid(2.0 * std::f64::consts::PI)
+        (rotation_y - rotation_x
+            + if xsig == -1.0 {
+                std::f64::consts::PI
+            } else {
+                0.0
+            })
+        .rem_euclid(2.0 * std::f64::consts::PI)
     };
 
     let scale_x = Percent::from_unit(scale_x);
@@ -118,14 +134,15 @@ pub(crate) fn from_swf_matrix(swf_matrix: swf::Matrix) -> (Degrees, Percent, Per
     let matrix: Matrix = swf_matrix.into();
     let (mut rotation, mut scale_x, mut scale_y, mut skew) = props_from_matrix(matrix);
 
-    let negate_scale_xy = swf_matrix.a < Fixed16::ZERO
+    let negate_scale_x = swf_matrix.a < Fixed16::ZERO
         && (swf_matrix.b, swf_matrix.c) == (Fixed16::ZERO, Fixed16::ZERO)
         && swf_matrix.d > Fixed16::ZERO;
     let negate_scale_y =
-        negate_scale_xy || swf_matrix.a * swf_matrix.d < swf_matrix.b * swf_matrix.c;
+        !negate_scale_x && swf_matrix.a * swf_matrix.d < swf_matrix.b * swf_matrix.c;
 
-    if negate_scale_xy {
+    if negate_scale_x {
         scale_x = Percent::from(-scale_x.percent());
+        rotation = Degrees::from_radians(std::f64::consts::PI);
     }
 
     // invariant: matrix.
