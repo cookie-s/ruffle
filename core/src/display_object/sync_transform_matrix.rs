@@ -49,7 +49,12 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     let scale_x = xsig * f64::sqrt(a * a + b * b);
     let scale_y = xsig * ysig * f64::sqrt(c * c + d * d);
 
-    let rotation = f64::atan2(xsig * b, xsig * a); // `xsig` multiplication is required here for pi difference.
+    let rotation = if (a, b, c) == (0.0, 0.0, 0.0) && d > 0.0 {
+        0.0
+    } else {
+        // `xsig` multiplication is required here for pi difference.
+        f64::atan2(xsig * b, xsig * a)
+    };
     let skew = {
         // `ysig` multiplication is required here for pi difference.
         let rotation_y = atan2(-ysig * c, ysig * d);
