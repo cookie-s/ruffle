@@ -47,8 +47,9 @@ pub(crate) fn props_from_matrix(matrix: Matrix) -> (Degrees, Percent, Percent, f
     let ysig = if (a * d) < (b * c) { -1.0 } else { 1.0 };
 
     let scale_x = xsig * f64::sqrt(a * a + b * b);
-    let scale_y = ysig * f64::sqrt(c * c + d * d);
-    let rotation = f64::atan2(b, a);
+    let scale_y = xsig * ysig * f64::sqrt(c * c + d * d);
+
+    let rotation = f64::atan2(xsig * b, xsig * a); // `xsig` multiplication is required here for pi difference.
     let skew = {
         // `ysig` multiplication is required here for pi difference.
         let rotation_y = atan2(-ysig * c, ysig * d);
@@ -96,14 +97,15 @@ pub(crate) fn from_swf_matrix(swf_matrix: swf::Matrix) -> (Degrees, Percent, Per
     let matrix: Matrix = swf_matrix.into();
     let (mut rotation, mut scale_x, mut scale_y, mut skew) = props_from_matrix(matrix);
 
-    let negate_scale_xy = swf_matrix.a < Fixed16::ZERO
+    let negate_scale_x = swf_matrix.a < Fixed16::ZERO
         && (swf_matrix.b, swf_matrix.c) == (Fixed16::ZERO, Fixed16::ZERO)
         && swf_matrix.d > Fixed16::ZERO;
     let negate_scale_y =
-        negate_scale_xy || swf_matrix.a * swf_matrix.d < swf_matrix.b * swf_matrix.c;
+        !negate_scale_x && swf_matrix.a * swf_matrix.d < swf_matrix.b * swf_matrix.c;
 
-    if negate_scale_xy {
+    if negate_scale_x {
         scale_x = Percent::from(-scale_x.percent());
+        rotation = Degrees::from_radians(std::f64::consts::PI);
     }
 
     // invariant: matrix.
