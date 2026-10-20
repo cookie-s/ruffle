@@ -11,7 +11,7 @@
 # Binary files
 *.png  binary
 *.fla  binary
-*.swf  binary
+*.swf  binary merge=theirs
 *.swc  binary
 
 # Ignore test files from GitHub's language stats
