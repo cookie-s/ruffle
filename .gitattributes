@@ -17,5 +17,7 @@
 *.swf  binary merge=theirs
 *.swc  binary
 
+output.ruffle.txt text merge=output-ruffle-txt
+
 # Ignore test files from GitHub's language stats
 tests/tests/swfs/** linguist-vendored
