@@ -1,10 +1,6 @@
 name: Release
 
 on:
-  # Run nightly
-  schedule:
-    - cron: "0 0 * * *"
-
   # Allow for manual dispatch on GitHub
   workflow_dispatch:
     inputs:
